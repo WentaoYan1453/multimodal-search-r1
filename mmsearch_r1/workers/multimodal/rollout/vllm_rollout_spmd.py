@@ -344,6 +344,9 @@ class vLLMRollout_MultiTurn_MMSearch_R1(vLLMRollout):
 
                     search_result_txt, search_result_img, tool_stat = search_result_
 
+                    # init search_result_message
+                    search_result_message = search_result_txt
+
                     # Construct Next Round Prompt
                     # Use after_image_search_prompt and after_text_search_prompt to differentiate the two cases
                     if (
