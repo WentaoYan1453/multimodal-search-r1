@@ -1,14 +1,13 @@
 # This script is for single-node running test
-export WANDB_API_KEY=d8c9cc93618975e00c4f9707398575ca819767c1
-export WANDB_BASE_URL=https://api.bandw.top
+
 export RETRIEVAL_SERVICE_URL="http://0.0.0.0:8000/retrieve"
 export TIMEOUT=120
-TRAIN_DATA_PATH="/nas/dmcv/yanwentao/dataset/FVQA/fvqa_train.parquet"
-VAL_DATA_PATH="/nas/dmcv/yanwentao/dataset/FVQA/fvqa_test.parquet"
+TRAIN_DATA_PATH="/FVQA/fvqa_train.parquet"
+VAL_DATA_PATH="/FVQA/fvqa_test.parquet"
 WANDB_PROJECT_NAME="mmsearch_r1_grpo_new"
-WANDB_EXP_NAME="new_prompt_batch128_topk3_warmup0_em_search_score0_search_penalty1_format_0.1_rollout5"
+WANDB_EXP_NAME=""
 
-cd /mnt/workspace/yanwentao/code/multimodal-search-r1;
+cd multimodal-search-r1;
 
 python3 -m mmsearch_r1.trainer.multimodal.main_ppo \
     algorithm.adv_estimator=grpo \
@@ -18,10 +17,10 @@ python3 -m mmsearch_r1.trainer.multimodal.main_ppo \
     data.max_prompt_length=6000 \
     data.max_response_length=4096 \
     data.image_key=images \
-    data.user_prompt_round_1=/mnt/workspace/yanwentao/code/multimodal-search-r1/mmsearch_r1/prompts/round_1_user_prompt_qwenvl_updated_think_modified.pkl \
-    data.user_prompt_after_image_search=/mnt/workspace/yanwentao/code/multimodal-search-r1/mmsearch_r1/prompts/after_image_search_prompt_qwenvl.pkl \
-    data.user_prompt_after_text_search=/mnt/workspace/yanwentao/code/multimodal-search-r1/mmsearch_r1/prompts/after_text_search_prompt_qwenvl_final_think_updated.pkl \
-    actor_rollout_ref.model.path=/oss-tanxin/yanwentao/model/Qwen2.5-VL-7B-Instruct \
+    data.user_prompt_round_1==multimodal-search-r1/mmsearch_r1/prompts/round_1_user_prompt_qwenvl_updated_think_modified.pkl \
+    data.user_prompt_after_image_search=multimodal-search-r1/mmsearch_r1/prompts/after_image_search_prompt_qwenvl.pkl \
+    data.user_prompt_after_text_search=multimodal-search-r1/mmsearch_r1/prompts/after_text_search_prompt_qwenvl_final_think_updated.pkl \
+    actor_rollout_ref.model.path=Qwen2.5-VL-7B-Instruct \
     actor_rollout_ref.actor.optim.lr=2e-6 \
     actor_rollout_ref.actor.optim.lr_sigmoid_decay_warmup=False \
     actor_rollout_ref.actor.optim.lr_sigmoid_decay_ratio=0.95 \
@@ -63,7 +62,7 @@ python3 -m mmsearch_r1.trainer.multimodal.main_ppo \
     trainer.nnodes=1 \
     trainer.save_freq=200 \
     trainer.test_freq=100 \
-    trainer.rollout_data_dir=/nas/dmcv/yanwentao/output/mmsearch_r1_grpo_1_7B_40 \
+    trainer.rollout_data_dir=  \
     trainer.total_epochs=5 \
     +trainer.search_penalty=0.1 \
     +trainer.format_penalty=0.1 \
@@ -71,5 +70,5 @@ python3 -m mmsearch_r1.trainer.multimodal.main_ppo \
     +trainer.val_before_train=False \
     +algorithm.filter_groups.enable=False 
     #     trainer.val_only=True \
-    # trainer.val_only_save_dir=/nas/dmcv/yanwentao/output/qwen_val_only \
+    # trainer.val_only_save_dir=\
     # trainer.val_generations_to_log_to_wandb=300 \
