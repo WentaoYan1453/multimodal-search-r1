@@ -199,6 +199,7 @@ trainer:
   default_hdfs_dir: null
   remove_previous_ckpt_in_save: False
   del_local_ckpt_after_load: False
+  rollout_data_dir: null
   default_local_dir: checkpoints/${trainer.project_name}/${trainer.experiment_name}
   rollout_log_dir: ./
   train_generations_to_log_to_wandb: True

@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pprint import pprint
 from typing import Type
-
+import json
 import numpy as np
 import pandas as pd
 import tqdm
@@ -485,7 +485,31 @@ class RayPPOTrainer:
         with open_dict(self.config):
             self.config.actor_rollout_ref.actor.optim.total_training_steps = total_training_steps
             self.config.critic.optim.total_training_steps = total_training_steps
+    def _dump_generations(self, inputs, outputs, gts, scores, dump_path):
+        """Dump rollout/validation samples as JSONL."""
+        os.makedirs(dump_path, exist_ok=True)
+        filename = os.path.join(dump_path, f"{self.global_steps}.jsonl")
 
+        n = len(inputs)
+        base_data = {
+            "input": inputs,
+            "output": outputs,
+            "gts": gts,
+            "score": scores,
+            "step": [self.global_steps] * n,
+        }
+
+
+
+        lines = []
+        for i in range(n):
+            entry = {k: v[i] for k, v in base_data.items()}
+            lines.append(json.dumps(entry, ensure_ascii=False))
+
+        with open(filename, "w") as f:
+            f.write("\n".join(lines) + "\n")
+
+        print(f"Dumped generations to {filename}")
     def _maybe_log_val_generations_to_wandb(self, inputs, outputs, scores, reward_models=[], image_urls=[]):
         """Log a table of validation samples to wandb"""
 
@@ -1241,6 +1265,23 @@ class RayPPOTrainer:
                         actor_output_metrics = reduce_metrics(actor_output.meta_info['metrics'])
                         metrics.update(actor_output_metrics)
 
+                    rollout_data_dir = self.config.trainer.get("rollout_data_dir", None)
+                    if rollout_data_dir:
+                        inputs = self.tokenizer.batch_decode(batch.batch["prompts"], skip_special_tokens=True)
+                        outputs = self.tokenizer.batch_decode(batch.batch["responses"], skip_special_tokens=True)
+                        sample_gts = [
+                            item.non_tensor_batch.get("reward_model", {}).get("ground_truth", None)
+                            for item in batch
+                        ]
+                        # sequence score = sum of token_level_scores along response tokens
+                        seq_scores = batch.batch["token_level_scores"].sum(dim=-1).detach().cpu().tolist()
+                        self._dump_generations(
+                            inputs=inputs,
+                            outputs=outputs,
+                            gts=sample_gts,
+                            scores=seq_scores,
+                            dump_path=rollout_data_dir,
+                        )
                     # validate
                     if (
                         self.val_reward_fn is not None

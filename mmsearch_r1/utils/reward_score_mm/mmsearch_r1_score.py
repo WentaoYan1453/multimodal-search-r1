@@ -65,169 +65,85 @@ def subem_check(prediction, golden_answers):
 
 
 def extract_solution(prediction):
-    """Extract the equation from the solution string."""
+    """从最后一轮回复中抽取 <answer>...</answer>"""
+    match = list(re.finditer(r'<answer>(.*?)</answer>', prediction, re.DOTALL))
+    return None if not match else match[-1].group(1).strip()
 
-    answer_pattern = r'<answer>(.*?)</answer>'
-    match = re.finditer(answer_pattern, prediction, re.DOTALL)
-    matches = list(match)
 
-    if not matches:
-        return None
+# --------------------------- 输出格式校验 --------------------------- #
+
+def is_valid_direct_answer(resp, pattern):
+    """
+    合法直接回答格式:
+      <think>...</think><answer>...</answer>
+    无任何搜索调用。
+    """
+    if not re.match(pattern, resp, re.DOTALL):
+        return False
+    if resp.count('<think>') != 1 or resp.count('</think>') != 1:
+        return False
+    if resp.count('<answer>') != 1 or resp.count('</answer>') != 1:
+        return False
+    # 禁止出现任何搜索标签
+    if '<text_search>' in resp or '</text_search>' in resp:
+        return False
+    return True
+
+
+def is_valid_text_search(resp, pattern):
+    """
+    合法文本检索格式:
+      <think>...</think><text_search>...</text_search>
+    不允许出现 <answer> 标签。
+    """
+    if not re.match(pattern, resp, re.DOTALL):
+        return False
+    if resp.count('<think>') != 1 or resp.count('</think>') != 1:
+        return False
+    if resp.count('<text_search>') != 1 or resp.count('</text_search>') != 1:
+        return False
+    if '<answer>' in resp or '</answer>' in resp:
+        return False
+    return True
+
+
+# --------------------------- Format + Search 评估 --------------------------- #
+
+def format_reward(responses):
+    """
+    只保留两种合规形式：
+      1-turn:  直接回答
+      2-turn:  文本检索 → 回答
+    """
+    direct_pattern = r'^<think>.*</think>.*<answer>.*</answer>$'
+    text_search_pattern = r'^<think>.*</think>.*<text_search>.*</text_search>$'
+
+    rounds = len(responses)
+    fmt_score, search_cnt = 0, 0
+
+    if rounds == 1:
+        r1 = responses[0].strip()
+        if is_valid_direct_answer(r1, direct_pattern):
+            fmt_score = 1
+        # count search (仅统计第一次出现即可)
+        if '<text_search>' in r1 and '</text_search>' in r1:
+            search_cnt = 1
+
+    elif rounds == 2:
+        r1, r2 = responses[0].strip(), responses[1].strip()
+        if is_valid_text_search(r1, text_search_pattern) and is_valid_direct_answer(r2, direct_pattern):
+            fmt_score = 1
+        if '<text_search>' in r1 and '</text_search>' in r1:
+            search_cnt = 1
+            
+
     else:
-        return matches[-1].group(1).strip()
+        raise ValueError(f"Unsupported number of turns: {rounds}. Only 1 or 2 are allowed now.")
+
+    return fmt_score, search_cnt
 
 
-def is_valid_direct_answer(response, direct_answer_format) -> bool:
-    """
-    Check Direct Answer: <reason>...</reason><answer>...</answer>
-      1) Structure Matching
-      2) Pattern Count: <reason>...</reason>, <answer>...</answer>
-      3) No any search actions included
-    """
-    pattern = direct_answer_format
-    # 1). Structure Matching
-    if not re.match(pattern, response, re.DOTALL):
-        return False
-    # 2). Pattern Count
-    if response.count('<reason>') != 1 or response.count('</reason>') != 1:
-        return False
-    if response.count('<answer>') != 1 or response.count('</answer>') != 1:
-        return False
-    # 3). <search><img></search> or <text_search> is not allowed!
-    if '<search><img></search>' in response:
-        return False
-    if '<text_search>' in response or '</text_search>' in response:
-        return False
-    return True
-
-
-def is_valid_image_search(response, call_image_search_format) -> bool:
-    """
-    Check Image Search: <reason>...</reason>...<search><img></search>
-      1) Structure Matching
-      2) Pattern Count: <reason>...</reason>
-      3) Pattern Count: <search><img></search>
-      4) No <answer> or </answer> or <text_search> or </text_search> included
-    """
-    pattern = call_image_search_format
-    # 1). Structure Matching
-    if not re.match(pattern, response, re.DOTALL):
-        return False
-    # 2). <reason> Count
-    if response.count('<reason>') != 1 or response.count('</reason>') != 1:
-        return False
-    # 3). <search><img></search> Count
-    if response.count('<search><img></search>') != 1:
-        return False
-    # 4). <answer> or <text_search> is not allowed!
-    if '<answer>' in response or '</answer>' in response:
-        return False
-    if '<text_search>' in response or '</text_search>' in response:
-        return False
-    return True
-
-
-def is_valid_text_search(response, call_text_search_format) -> bool:
-    """
-    Check Text Search: <reason>...</reason>...<text_search>...</text_search>
-      1) Structure Matching
-      2) Pattern Count: <reason>...</reason> 
-      3) Pattern Count: <text_search>...</text_search> 
-      4) No <answer> or </answer> or <search><img></search> included
-    """
-    pattern = call_text_search_format
-    # 1). Structure Matching
-    if not re.match(pattern, response, re.DOTALL):
-        return False
-    # 2). <reason> Count
-    if response.count('<reason>') != 1 or response.count('</reason>') != 1:
-        return False
-    # 3). <text_search> and </text_search> Count
-    if response.count('<text_search>') != 1 or response.count('</text_search>') != 1:
-        return False
-    # 4). <answer> or <search><img></search> is not allowed!
-    if '<answer>' in response or '</answer>' in response:
-        return False
-    if '<search><img></search>' in response:
-        return False
-    return True
-
-
-def format_reward(input_string: list):
-    """
-    Check if the model's response follows the required formats and return a reward.
-    [1-turn]:
-        - Direct Answer
-    [2-turn]:
-        - Call Image Search + Answer
-        - Call Text Search + Answer
-    [3-turn]:
-        - Call Image Search + Call Text Search + Answer
-    Args:
-    - input_string (list): A list of responses, currently, max length of `input_string` is 3 (3-turn).
-    Returns:
-    - format_score: float, 1.0 for right format, 0.0 for wrong
-    - search_count: int, times of search tools called
-    """
-    conv_rounds = len(input_string)
-    format_score, search_count = 0, 0
-    # All allowed formats
-    direct_answer_format = r'^<reason>.*</reason>.*<answer>.*</answer>$'
-    call_image_search_format = r'^<reason>.*</reason>.*<search><img></search>$'
-    call_text_search_format = r'^<reason>.*</reason>.*<text_search>.*</text_search>$'
-    # HACK/FIXME: We need more flexible judge in the future
-    # 1-turn
-    if conv_rounds == 1:
-        response_1 = input_string[0].strip()
-        if (
-            ("<search><img></search>" in response_1)
-            or ("<text_search>" in response_1 and "</text_search>" in response_1)
-        ):
-            search_count += 1
-        # Direct Answer
-        if is_valid_direct_answer(response_1, direct_answer_format):
-            format_score = 1
-    # 2-turn
-    elif conv_rounds == 2:
-        response_1, response_2 = input_string[0].strip(), input_string[1].strip()
-        if (
-            ("<search><img></search>" in response_1)
-            or ("<text_search>" in response_1 and "</text_search>" in response_1)
-        ):
-            search_count += 1
-        # Call Image Search + Answer
-        if is_valid_image_search(response_1, call_image_search_format) and is_valid_direct_answer(response_2, direct_answer_format):
-            format_score = 1
-        # Call Text Search + Answer
-        elif is_valid_text_search(response_1, call_text_search_format) and is_valid_direct_answer(
-            response_2, direct_answer_format
-        ):
-            format_score = 1
-    # 3-turn
-    elif conv_rounds == 3:
-        response_1, response_2, response_3 = input_string[0].strip(), input_string[1].strip(), input_string[2].strip()
-        if (
-            ("<search><img></search>" in response_1)
-            or ("<text_search>" in response_1 and "</text_search>" in response_1)
-        ):
-            search_count += 1
-        if (
-            ("<search><img></search>" in response_2)
-            or ("<text_search>" in response_2 and "</text_search>" in response_2)
-        ):
-            search_count += 1
-        # Call Image Search + Call Text Search + Answer
-        if (
-            is_valid_image_search(response_1, call_image_search_format)
-            and is_valid_text_search(response_2, call_text_search_format)
-            and is_valid_direct_answer(response_3, direct_answer_format)
-        ):
-            format_score = 1
-    else:
-        raise ValueError(f"[Error Occured] Number of responses is {conv_rounds}, which is not supported currently!")
-
-    return format_score, search_count
-
+# --------------------------- 主奖励函数 --------------------------- #
 
 def compute_score(prediction: list, ground_truth: list, extra_info=None):
     # Exactly Match Scorer
@@ -251,7 +167,7 @@ def compute_score(prediction: list, ground_truth: list, extra_info=None):
         if reward_mode == "EM" and em_check(answer, ground_truth):
             score = 1
         elif reward_mode == 'SubEM' and subem_check(answer, ground_truth):
-            score = 1
+            correct = 1
 
     # Format Check
     format_score, search_count = format_reward(prediction)
