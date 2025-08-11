@@ -10,6 +10,7 @@ WANDB_EXP_NAME="new_prompt_batch128_topk3_warmup0_em_search_score0_search_penalt
 
 cd /mnt/workspace/yanwentao/code/multimodal-search-r1;
 
+
 python3 -m mmsearch_r1.trainer.multimodal.main_ppo \
     algorithm.adv_estimator=grpo \
     data.train_files=$TRAIN_DATA_PATH \
