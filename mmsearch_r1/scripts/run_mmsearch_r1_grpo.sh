@@ -1,5 +1,6 @@
 # This script is for single-node running test
-
+export WANDB_API_KEY=d8c9cc93618975e00c4f9707398575ca819767c1
+export WANDB_BASE_URL=https://api.bandw.top
 export RETRIEVAL_SERVICE_URL="http://0.0.0.0:8000/retrieve"
 export TIMEOUT=120
 TRAIN_DATA_PATH="/nas/dmcv/yanwentao/dataset/FVQA/fvqa_train.parquet"
