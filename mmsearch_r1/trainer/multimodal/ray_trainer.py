@@ -97,7 +97,7 @@ def compute_data_metrics(batch, use_critic=True, tokenizer=None):
     search_ratio_mix = search_cnt_mix / total_count
     fail_ratio_text = search_fail_text / (search_cnt_text_total + 1e-5)
     fail_ratio_image = search_fail_image / (search_cnt_image_total + 1e-5)
-    fp = 0.1
+    fp = 0.3
     if 'extra_info' in batch.non_tensor_batch and 'format_penalty' in batch.non_tensor_batch['extra_info'][0]:
         fp = batch.non_tensor_batch['extra_info'][0]['format_penalty']
     correct_threshold = fp + 1e-4
@@ -629,17 +629,17 @@ class RayPPOTrainer:
                 if 'image_urls' in test_batch.non_tensor_batch:
                     test_gen_batch = test_batch.pop(
                         batch_keys=['input_ids', 'attention_mask', 'position_ids'],
-                        non_tensor_batch_keys=['raw_prompt_ids', 'multi_modal_data', 'image_urls'],
+                        non_tensor_batch_keys=['raw_prompt_ids', 'multi_modal_data', 'image_urls', 'data_id'],
                     )
                 else:
                     test_gen_batch = test_batch.pop(
                         batch_keys=['input_ids', 'attention_mask', 'position_ids'],
-                        non_tensor_batch_keys=['raw_prompt_ids', 'multi_modal_data'],
+                        non_tensor_batch_keys=['raw_prompt_ids', 'multi_modal_data', 'data_id'],
                     )
             else:
                 test_gen_batch = test_batch.pop(
                     batch_keys=['input_ids', 'attention_mask', 'position_ids'],
-                    non_tensor_batch_keys=['raw_prompt_ids'],
+                    non_tensor_batch_keys=['raw_prompt_ids','data_id'],
                 )
 
             test_gen_batch.meta_info = {
@@ -687,6 +687,7 @@ class RayPPOTrainer:
                     test_batch.non_tensor_batch['extra_info'][item_id][
                         'use_search_count_penalty'
                     ] = use_search_count_penalty
+
             test_batch.non_tensor_batch['extra_info'] = np.array(test_batch.non_tensor_batch['extra_info'])
             reward_tensor = self.val_reward_fn(test_batch)
 
@@ -1026,17 +1027,17 @@ class RayPPOTrainer:
                     ):  # for MMSearch-R1 datasets, the field 'image_urls' is used for potential search actions
                         gen_batch = new_batch.pop(
                             batch_keys=['input_ids', 'attention_mask', 'position_ids'],
-                            non_tensor_batch_keys=['raw_prompt_ids', 'multi_modal_data', 'image_urls'],
+                            non_tensor_batch_keys=['raw_prompt_ids', 'multi_modal_data', 'image_urls', 'data_id', 'category'],
                         )
                     else:
                         gen_batch = new_batch.pop(
                             batch_keys=['input_ids', 'attention_mask', 'position_ids'],
-                            non_tensor_batch_keys=['raw_prompt_ids', 'multi_modal_data'],
+                            non_tensor_batch_keys=['raw_prompt_ids', 'multi_modal_data', "data_id", 'category'],
                         )
                 else:
                     gen_batch = new_batch.pop(
                         batch_keys=['input_ids', 'attention_mask', 'position_ids'],
-                        non_tensor_batch_keys=['raw_prompt_ids'],
+                        non_tensor_batch_keys=['raw_prompt_ids', 'data_id', 'category'],
                     )
                 is_last_step = self.global_steps >= self.total_training_steps
 
@@ -1114,6 +1115,8 @@ class RayPPOTrainer:
                                 new_batch.non_tensor_batch['extra_info'][item_id][
                                     'use_search_count_penalty'
                                 ] = use_search_count_penalty
+                            if 'category' in new_batch.non_tensor_batch:
+                                new_batch.non_tensor_batch['extra_info'][item_id]['category'] = new_batch.non_tensor_batch['category'][item_id]
                         new_batch.non_tensor_batch['extra_info'] = np.array(new_batch.non_tensor_batch['extra_info'])
 
                         # we combine with rule-based rm

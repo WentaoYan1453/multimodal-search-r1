@@ -161,6 +161,11 @@ class vLLMRollout_MultiTurn_MMSearch_R1(vLLMRollout):
         if 'image_urls' in non_tensor_batch.keys() and not prompts.meta_info.get('validate', False):
             non_tensor_batch['image_urls'] = _repeat_interleave(non_tensor_batch['image_urls'], self.config.n)
 
+        if 'data_id' in non_tensor_batch.keys() and not prompts.meta_info.get('validate', False):
+            non_tensor_batch['data_id'] = _repeat_interleave(non_tensor_batch['data_id'], self.config.n)
+        if 'category' in non_tensor_batch.keys() and not prompts.meta_info.get('validate', False):
+            non_tensor_batch['category'] = _repeat_interleave(non_tensor_batch['category'], self.config.n)
+
         ##### Loop Setting #####
         to_generate = list(range(batch_size * n))  # B*R, all trajs' index
         worker_trajs_count = len(to_generate)
@@ -226,6 +231,7 @@ class vLLMRollout_MultiTurn_MMSearch_R1(vLLMRollout):
                             print(f"{i_gen} has reached max_image_gen_round {max_image_gen_round}")
                             continue
                         img_to_search = non_tensor_batch["image_urls"][i_gen]
+                        search_id = non_tensor_batch["data_id"][i_gen]
                         id_search_query_mapping[str(i_gen)] = {"type": "image", "content": img_to_search}
                         id_image_gen_cnt[i_gen] += 1  # Text Gen Constraint
                     # Need to call text search
@@ -306,12 +312,14 @@ class vLLMRollout_MultiTurn_MMSearch_R1(vLLMRollout):
                             f"[Round #{current_iteration} Search START][Thread{thread_id}] Call search tool | Type: {_type} | Content: {_content} ..."
                         )
                         if _type == "text":
+                            print("ready to call")
                             tool_returned_str, tool_stat = call_text_search(
                                 text_query=_content,
                             )
                         elif _type == "image":
                             tool_returned_str, tool_returned_images, tool_stat = call_image_search(
                                 image_url=_content,
+                                cache_id = search_id
                             )
                         else:
                             raise ValueError(
