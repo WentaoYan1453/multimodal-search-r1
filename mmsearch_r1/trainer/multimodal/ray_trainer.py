@@ -97,9 +97,9 @@ def compute_data_metrics(batch, use_critic=True, tokenizer=None):
     search_ratio_mix = search_cnt_mix / total_count
     fail_ratio_text = search_fail_text / (search_cnt_text_total + 1e-5)
     fail_ratio_image = search_fail_image / (search_cnt_image_total + 1e-5)
+    # if 'extra_info' in batch.non_tensor_batch and 'format_penalty' in batch.non_tensor_batch['extra_info'][0]:
+    #     fp = batch.non_tensor_batch['extra_info'][0]['format_penalty']
     fp = 0.3
-    if 'extra_info' in batch.non_tensor_batch and 'format_penalty' in batch.non_tensor_batch['extra_info'][0]:
-        fp = batch.non_tensor_batch['extra_info'][0]['format_penalty']
     correct_threshold = fp + 1e-4
     count_correct = torch.sum(sequence_score > correct_threshold).item()
     answer_acc = count_correct / total_count
@@ -629,7 +629,7 @@ class RayPPOTrainer:
                 if 'image_urls' in test_batch.non_tensor_batch:
                     test_gen_batch = test_batch.pop(
                         batch_keys=['input_ids', 'attention_mask', 'position_ids'],
-                        non_tensor_batch_keys=['raw_prompt_ids', 'multi_modal_data', 'image_urls', 'data_id'],
+                        non_tensor_batch_keys=['raw_prompt_ids', 'multi_modal_data', 'image_urls', 'data_id', ],
                     )
                 else:
                     test_gen_batch = test_batch.pop(
@@ -720,9 +720,10 @@ class RayPPOTrainer:
         metric_dict = {}
         for data_source, rewards in data_source_reward.items():
             metric_dict[f'val/{data_source}/reward'] = np.mean(rewards)
-            fp = 0.1
-            if 'format_penalty' in self.config.trainer:  # adjust for other format reward
-                fp = self.config.trainer.format_penalty
+            
+            # if 'format_penalty' in self.config.trainer:  # adjust for other format reward
+            #     fp = self.config.trainer.format_penalty
+            fp = 0.3
             correct_threshold = fp + 1e-4
             correct_cnt = sum(1 for x in rewards if x > correct_threshold)
             metric_dict[f'val/{data_source}/score'] = correct_cnt / len(rewards)

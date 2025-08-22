@@ -1,4 +1,4 @@
-  # Copyright 2024 Bytedance Ltd. and/or its affiliates
+# Copyright 2024 Bytedance Ltd. and/or its affiliates
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -167,10 +167,11 @@ def format_reward(input_string: list):
     - input_string (list): A list of responses, currently, max length of `input_string` is 3 (3-turn).
     Returns:
     - format_score: float, 1.0 for right format, 0.0 for wrong
-    - search_count: int, times of search tools called
+    - image_search_count: int, times of image search tools called
+    - text_search_count: int, times of text search tools called
     """
     conv_rounds = len(input_string)
-    format_score, search_count = 0, 0
+    format_score, image_search_count, text_search_count = 0, 0, 0
     # All allowed formats
     direct_answer_format = r'^<reason>.*</reason>.*<answer>.*</answer>$'
     call_image_search_format = r'^<reason>.*</reason>.*<search><img></search>$'
@@ -179,22 +180,20 @@ def format_reward(input_string: list):
     # 1-turn
     if conv_rounds == 1:
         response_1 = input_string[0].strip()
-        if (
-            ("<search><img></search>" in response_1)
-            or ("<text_search>" in response_1 and "</text_search>" in response_1)
-        ):
-            search_count += 1
+        if "<search><img></search>" in response_1:
+            image_search_count += 1
+        if "<text_search>" in response_1 and "</text_search>" in response_1:
+            text_search_count += 1
         # Direct Answer
         if is_valid_direct_answer(response_1, direct_answer_format):
             format_score = 1
     # 2-turn
     elif conv_rounds == 2:
         response_1, response_2 = input_string[0].strip(), input_string[1].strip()
-        if (
-            ("<search><img></search>" in response_1)
-            or ("<text_search>" in response_1 and "</text_search>" in response_1)
-        ):
-            search_count += 1
+        if "<search><img></search>" in response_1:
+            image_search_count += 1
+        if "<text_search>" in response_1 and "</text_search>" in response_1:
+            text_search_count += 1
         # Call Image Search + Answer
         if is_valid_image_search(response_1, call_image_search_format) and is_valid_direct_answer(response_2, direct_answer_format):
             format_score = 1
@@ -206,16 +205,14 @@ def format_reward(input_string: list):
     # 3-turn
     elif conv_rounds == 3:
         response_1, response_2, response_3 = input_string[0].strip(), input_string[1].strip(), input_string[2].strip()
-        if (
-            ("<search><img></search>" in response_1)
-            or ("<text_search>" in response_1 and "</text_search>" in response_1)
-        ):
-            search_count += 1
-        if (
-            ("<search><img></search>" in response_2)
-            or ("<text_search>" in response_2 and "</text_search>" in response_2)
-        ):
-            search_count += 1
+        if "<search><img></search>" in response_1:
+            image_search_count += 1
+        if "<text_search>" in response_1 and "</text_search>" in response_1:
+            text_search_count += 1
+        if "<search><img></search>" in response_2:
+            image_search_count += 1
+        if "<text_search>" in response_2 and "</text_search>" in response_2:
+            text_search_count += 1
         # Call Image Search + Call Text Search + Answer
         if (
             is_valid_image_search(response_1, call_image_search_format)
@@ -226,7 +223,7 @@ def format_reward(input_string: list):
     else:
         raise ValueError(f"[Error Occured] Number of responses is {conv_rounds}, which is not supported currently!")
 
-    return format_score, search_count
+    return format_score, image_search_count, text_search_count
 
 
 def compute_score(prediction: list, ground_truth: list, extra_info=None):
@@ -243,7 +240,6 @@ def compute_score(prediction: list, ground_truth: list, extra_info=None):
         assert reward_mode in ['EM', 'SubEM'], f'reward mode {reward_mode} passed in extra_info but not recognized'
     if extra_info is not None and 'category' in extra_info:
         category = extra_info.get('category', 'search_free')
-        print(category)
     # Extract Answer
     assert len(prediction) > 0, "[Error Occured] Model Responses are empty!"
     answer = extract_solution(prediction=prediction[-1])
@@ -257,19 +253,21 @@ def compute_score(prediction: list, ground_truth: list, extra_info=None):
             score = 1
 
     # Format Check
-    format_score, search_count = format_reward(prediction)
-    if search_count > 0 and score < 0.99 and format_score == 1:
-        if category == 'search_required':
-            format_score = 1.5
-        else:
-            format_score = 0
+    format_score, image_search_count, text_search_count = format_reward(prediction)
+    total_search_count = image_search_count + text_search_count
+
+    if total_search_count > 0 and score < 0.99 and category == 'search_required':
+        format_score = 1.5
+        # Additional score if both search types are used
+        if image_search_count > 0 and text_search_count > 0:
+            format_score += 0.25
 
     # Search Penalty, 0.99 is added here because we only want to punish correct answers
-    if search_count > 0 and score > 0.99 and category == 'search_free':
+    if total_search_count > 0 and score > 0.99 and category == 'search_free':
         use_search_count_penalty = extra_info.get('use_search_count_penalty', False)
         if use_search_count_penalty:
             # penalty w/ search count
-            for _ in range(search_count):
+            for _ in range(total_search_count):
                 score *= 1 - search_penalty
         else:
             # penalty w/o search count
