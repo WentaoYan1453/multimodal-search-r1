@@ -1,7 +1,9 @@
 from typing import Optional, Tuple
 import os
 from verl.tools.utils.search_r1_like_utils import perform_single_search_batch
-
+from typing import Tuple, Dict
+from ddgs import DDGS
+import time
 
 def call_text_search(
     text_query: str,
@@ -32,7 +34,7 @@ def call_text_search(
     """
     # Determine retrieval service URL
     if retrieval_service_url is None:
-        retrieval_service_url = os.getenv("RETRIEVAL_SERVICE_URL")
+        retrieval_service_url = "http://0.0.0.0:8000/retrieve"
     if not retrieval_service_url:
         raise ValueError(
             "Retrieval service URL must be provided via argument or set in 'RETRIEVAL_SERVICE_URL' environment variable."
@@ -46,7 +48,7 @@ def call_text_search(
     # Determine timeout
     if timeout is None:
         timeout_env = os.getenv("TIMEOUT")
-        timeout = int(timeout_env) if timeout_env is not None and timeout_env.isdigit() else 30
+        timeout = int(timeout_env) if timeout_env is not None and timeout_env.isdigit() else 120
 
     # Execute search batch for the single query
     result_text, metadata = perform_single_search_batch(
@@ -63,3 +65,65 @@ def call_text_search(
     result_text = header + result_text
 
     return result_text, metadata
+
+
+
+def call_web_text_search(text_query: str) -> Tuple[str, Dict]:
+    """
+    Perform a real text-based web search using DuckDuckGo (DDGS).
+    Returns only title + snippet (no href) for easier LLM input.
+    """
+
+    max_results = 5
+    region = "us-en"          # worldwide (global results)
+    safesearch = "moderate"
+    timelimit = 120
+    backend = "auto"
+
+    t0 = time.time()
+    try:
+        with DDGS() as ddgs:
+            results = list(ddgs.text(
+                text_query,
+                max_results=max_results,
+                region=region,
+                safesearch=safesearch,
+                timelimit=timelimit,
+                backend=backend,
+            ))
+        latency_ms = int((time.time() - t0) * 1000)
+
+        if results:
+            lines = []
+            lines.append("[Text Search Results] Below are the text summaries of the most relevant webpages related to your query, ranked in descending order of relevance:")
+            for i, r in enumerate(results, start=1):
+                title = r.get("title") or "No title"
+                body = (r.get("body") or "").strip()
+                if len(body) > 400:  # 避免太长
+                    body = body[:400].rstrip() + "..."
+                lines.append(f"{i}. {title}\n   {body}")
+            tool_returned_str = "\n".join(lines)
+        else:
+            tool_returned_str = "[Text Search Results] No results were found for your query."
+
+        tool_stat = {
+            "success": True,
+            "engine": "duckduckgo",
+            "num_results": len(results),
+            "latency_ms": latency_ms,
+        }
+        return tool_returned_str, tool_stat
+
+    except Exception as e:
+        latency_ms = int((time.time() - t0) * 1000)
+        tool_returned_str = (
+            "[Text Search Results] There was an error performing the search. "
+            "Please reason with your own capabilities or try again later."
+        )
+        tool_stat = {
+            "success": False,
+            "engine": "duckduckgo",
+            "error": str(e),
+            "latency_ms": latency_ms,
+        }
+        return tool_returned_str, tool_stat

@@ -39,6 +39,7 @@ from verl.workers.rollout.vllm_rollout.vllm_rollout_spmd import (
 
 from mmsearch_r1.utils.tools.image_search import call_image_search
 from mmsearch_r1.utils.tools.text_search import call_text_search
+from mmsearch_r1.utils.tools.text_search import call_web_text_search
 from mmsearch_r1.utils.torch_functional import get_final_eos_mask
 
 # TODO
@@ -288,7 +289,7 @@ class vLLMRollout_MultiTurn_MMSearch_R1(vLLMRollout):
                         _content = id_search_query_mapping[str(i_todo)]["content"]
                         # print(f"[Round #{current_iteration} Search START] Call search tool | Type: {_type} | Content: {_content} ...")
                         if _type == "text":
-                            tool_returned_str, tool_stat = call_text_search(
+                            tool_returned_str, tool_stat = call_web_text_search(
                                 text_query=_content,
                             )
                         elif _type == "image":
@@ -313,7 +314,7 @@ class vLLMRollout_MultiTurn_MMSearch_R1(vLLMRollout):
                         )
                         if _type == "text":
                             print("ready to call")
-                            tool_returned_str, tool_stat = call_text_search(
+                            tool_returned_str, tool_stat = call_web_text_search(
                                 text_query=_content,
                             )
                         elif _type == "image":
@@ -367,7 +368,7 @@ class vLLMRollout_MultiTurn_MMSearch_R1(vLLMRollout):
                                 vllm_inputs[i_gen_]['prompt_token_ids'], skip_special_tokens=True
                             )
                             org_query = (
-                                all_context.split("Here is the image and the question:\n ")[1]
+                                all_context.split("Here is the image and the question:\n")[1]
                                 .split("assistant")[0]
                                 .strip()
                             )
@@ -389,7 +390,7 @@ class vLLMRollout_MultiTurn_MMSearch_R1(vLLMRollout):
                                 vllm_inputs[i_gen_]['prompt_token_ids'], skip_special_tokens=True
                             )
                             org_query = (
-                                all_context.split("Here is the image and the question:\n ")[1]
+                                all_context.split("Here is the image and the question:\n")[1]
                                 .split("assistant")[0]
                                 .strip()
                             )
