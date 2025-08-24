@@ -78,6 +78,10 @@ trainer.rollout_data_dir：打印训练时的输出
  如果train batch或者roll out开大时推理有问题，更改verl/verl/workers/rollout/vllm_rollout/vllm_rollout_spmd.py
 165 行 enable_prefix_caching=False
 
+prompt的话我改了新的，但其实效果差别不大，原本的是mmsearch_r1/prompts/round_1_user_prompt_qwenvl.pkl 
+
+这个代码多轮拼接对话时比较暴力，是直接字符串匹配得到最开始的提问query的，如果自己改prompt时可能会有问题，得注意一下
+
 
 ## Acknowledgement
 We sincerely thank these repositories for providing helpful open-source resources: [Qwen2.5-VL](https://github.com/QwenLM/Qwen2.5-VL), [veRL](https://github.com/volcengine/verl), [OpenDeepResearcher](https://github.com/mshumer/OpenDeepResearcher), [cfpark00/verl](https://github.com/cfpark00/verl/tree/multi_turn_rollout), [Search-R1](https://github.com/PeterGriffinJin/Search-R1), [MMSearch](https://github.com/CaraJ7/MMSearch).
