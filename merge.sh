@@ -1,4 +1,4 @@
 python /mnt/workspace/yanwentao/code/mmrl/verl/scripts/legacy_model_merger.py merge\
  --backend fsdp \
- --local_dir /mnt/workspace/yanwentao/code/multimodal-search-r1/checkpoints/mmsearch_r1_grpo_new/mmsearch_r1_grpo_newprompt2_batch32_topk3_no_warmup_em_search_score2_search_penalty0_newtextprompt/global_step_200/actor \
- --target_dir /oss-tanxin/yanwentao/model/mmsearch_r1_grpo/mmsearch_r1_grpo_newprompt2_batch32_topk3_no_warmup_em_search_score2_search_penalty0_newtextprompt_200
+ --local_dir /mnt/workspace/yanwentao/code/multimodal-search-r1/checkpoints/mmsearch_r1_grpo_new/batchsize_128_rollout_8_search_penalty_0_no_warmup_new_score_3_new_prompt/global_step_150/actor\
+ --target_dir /oss-tanxin/yanwentao/model/mmsearch_r1_grpo/dense_search_step_150

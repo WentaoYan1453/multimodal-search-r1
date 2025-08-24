@@ -14,10 +14,7 @@
 
 **MMSearch-R1** is an end-to-end RL framework that enables LMMs to perform on-demand, multi-turn search with real-world multimodal search tools.
 
-## News
-- [25.07.30] [MMSearch-R1-7B](https://huggingface.co/lmms-lab/MMSearch-R1-7B) Model and [FactualVQA(FVQA)](https://huggingface.co/datasets/lmms-lab/FVQA) Dataset **(including all cached image search results)** now released on [Huggingface](https://huggingface.co/collections/lmms-lab/mmsearch-r1-6889e975d8651ce2554b1b3e)!
-- [25.06.26] Paper released on [ArXiv](https://arxiv.org/abs/2506.20670) and [Huggingface](https://huggingface.co/papers/2506.20670)!
-- [25.06.18] [Blog](https://www.lmms-lab.com/posts/mmsearch_r1) and code are updated!
+[cache data位置](XLDDD/FVQA_Cache)
 
 ## Table of Content
 - [Installation](#installation)
@@ -43,16 +40,15 @@ pip3 install wandb
 export WANDB_API_KEY="XXX"
 wandb login $WANDB_API_KEY
 ```
+就照着这样装，不过wandb可能要翻墙
 
 ## Multimodal Search Tool Implemention
-We draw inspiration from open-sourced implementation [OpenDeepResearcher](https://github.com/mshumer/OpenDeepResearcher/blob/main/open_deep_researcher.ipynb), which integrates [SerpApi](https://serpapi.com/), [JINA Reader](https://jina.ai/reader/), and LLM-based summarization to retrieve and condense web content relevant to a given question. Currently, MMSearch-R1 includes two types of search tools: an image search tool and a text search tool.
-- **Image Search Tool:** This tool is built solely on SerpAPI. The model provides the image (via URL or other form) to the tool, which is responsible for retrieving the top-k visually relevant web pages. The tool returns a sequence of interleaved thumbnails and titles extracted from those pages.
-- **Text Search Tool:** This tool combines SerpAPI, JINA Reader, and Qwen3-32B for summarization. The model submits a text query, and SerpAPI retrieves the top-k relevant web page URLs. JINA Reader parses and cleans the content of those pages, and Qwen3-32B generates summaries based on the original query. The tool ultimately returns a list of summarized passages from the top-k relevant webpages with their respective links.
+- **Image Search Tool:** 下载[cache data](https://huggingface.co/datasets/XLDDD/FVQA_Cache)即可
+- **Text Search Tool:** 
+- 如果有联网搜索的条件，可以先使用免费的ddgs搜索（需翻墙）
+- 如果没有，则参照[Search-R1](https://github.com/PeterGriffinJin/Search-R1)的本地检索工具搭建，参考[搜索搭建](https://github.com/PeterGriffinJin/Search-R1/blob/main/docs/retriever.md) ，推荐e5，装好index,corpus, retriever模型后运行local_dense_retriever里的start即可
+- 两种搜索的切换切换在 /multimodal/rollout/vllm_rollout_spmd.py第317 行
 
-⚠️⚠️⚠️ Before initiating formal training, you are expected to build your own search tool pipeline under the `mmsearch_r1/utils/tools/` directory and invoke it appropriately during the multi-turn rollout process.
-
-## Data Construction
-Both the training and validation datasets follow the format defined by veRL. We provide an example dataset under directory `mmsearch_r1/data` as a reference to help you prepare your own training data.
 
 ## Train & Eval
 We recommend use the command below for unified training and evaluation:
@@ -75,10 +71,13 @@ trainer.val_only_save_dir=${path_to_save_dir} \
 trainer.val_generations_to_log_to_wandb=64 # num of val generations to log, this should be larger than the size of val dataset for complete saving
 ```
 The model's responses will be saved in JSON format under `${path_to_save_dir}`, which can be used for subsequent analysis and evaluation.
+trainer.rollout_data_dir：打印训练时的输出
 
-## ToDo
-- [x] Model and Datasets
-- [x] Inference script example
+训练脚本相关：
+ 8 卡 80g内存的话 actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu只能开到 8
+ 如果train batch或者roll out开大时推理有问题，更改verl/verl/workers/rollout/vllm_rollout/vllm_rollout_spmd.py
+165 行 enable_prefix_caching=False
+
 
 ## Acknowledgement
 We sincerely thank these repositories for providing helpful open-source resources: [Qwen2.5-VL](https://github.com/QwenLM/Qwen2.5-VL), [veRL](https://github.com/volcengine/verl), [OpenDeepResearcher](https://github.com/mshumer/OpenDeepResearcher), [cfpark00/verl](https://github.com/cfpark00/verl/tree/multi_turn_rollout), [Search-R1](https://github.com/PeterGriffinJin/Search-R1), [MMSearch](https://github.com/CaraJ7/MMSearch).

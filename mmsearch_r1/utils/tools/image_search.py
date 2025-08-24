@@ -85,6 +85,7 @@ def call_image_search(image_url: str, cache_id: str):
                 try:
                     img = Image.open(img_path)
                     tool_returned_images.append(img)
+
                     
                     # 添加到返回字符串
                     tool_returned_str += f"{i+1}. image: <|vision_start|><|image_pad|><|vision_end|>\ntitle: {title}\n"
