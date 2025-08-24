@@ -1,5 +1,5 @@
 # This script is for single-node running test
-export WANDB_API_KEY=d8c9cc93618975e00c4f9707398575ca819767c1
+export WANDB_API_KEY="your_wandb_api_key"
 # export WANDB_BASE_URL=https://api.bandw.top
 export RETRIEVAL_SERVICE_URL="http://0.0.0.0:8000/retrieve"
 export TIMEOUT=300
@@ -7,7 +7,7 @@ export FVQA_TRAIN_CACHE_PATH="/nas/dmcv/yanwentao/dataset/FVQA/fvqa_train_cache"
 export FVQA_TEST_CACHE_PATH="/nas/dmcv/yanwentao/dataset/FVQA/fvqa_test_cache"
 TRAIN_DATA_PATH="/nas/dmcv/yanwentao/dataset/FVQA_new/fvqa_train.parquet"
 VAL_DATA_PATH="/nas/dmcv/yanwentao/dataset/FVQA_new/fvqa_test.parquet"
-WANDB_PROJECT_NAME="mmsearch_r1_grpo_new"
+WANDB_PROJECT_NAME="mmsearch_r1_grpo"
 WANDB_EXP_NAME="web_search_mmsearch_128batch_rollout_8_search_penalty_1_no_warmup_ori_score_top5"
 
 cd /mnt/workspace/yanwentao/code/multimodal-search-r1;
