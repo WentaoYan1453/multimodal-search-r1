@@ -40,12 +40,16 @@ pip3 install wandb
 export WANDB_API_KEY="XXX"
 wandb login $WANDB_API_KEY
 ```
-就照着这样装，不过wandb可能要翻墙
+就照着这样装，不过wandb可能要翻墙，无法联网的环境请使用
+
+```bash
+export WANDB_MODE="offline"
+```
 
 ## Multimodal Search Tool Implemention
 - **Image Search Tool:** 下载[cache data](https://huggingface.co/datasets/XLDDD/FVQA_Cache)即可
 - **Text Search Tool:** 
-- 如果有联网搜索的条件，可以先使用免费的ddgs搜索（需翻墙）
+- 如果有联网搜索的条件，可以先使用免费的ddgs搜索（需翻墙），搜索的长度限制和数量限制在`mmsearch_r1/utils/tools/text_search.py`里改
 - 如果没有，则参照[Search-R1](https://github.com/PeterGriffinJin/Search-R1)的本地检索工具搭建，参考[搜索搭建](https://github.com/PeterGriffinJin/Search-R1/blob/main/docs/retriever.md) ，推荐e5，装好index,corpus, retriever模型后运行local_dense_retriever里的start即可
 - 两种搜索的切换切换在 /multimodal/rollout/vllm_rollout_spmd.py第317 行
 
@@ -81,6 +85,7 @@ trainer.rollout_data_dir：打印训练时的输出
 prompt的话我改了新的，但其实效果差别不大，原本的是mmsearch_r1/prompts/round_1_user_prompt_qwenvl.pkl 
 
 这个代码多轮拼接对话时比较暴力，是直接字符串匹配得到最开始的提问query的，如果自己改prompt时可能会有问题，得注意一下
+拼接代码位于 `mmsearch_r1/workers/multimodal/rollout/vllm_rollout_spmd.py` 文件的第 393 行，具体为 `all_context.split("Here is the image and the question:\n")[1]`。
 
 
 ## Acknowledgement
